@@ -4,6 +4,9 @@ from functools import lru_cache
 import os
 import time
 import pulp  # For Integer Programming
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 import streamlit as st
@@ -647,6 +650,215 @@ def main():
                 
                 # Display the optimization objective value
                 st.info(f"Optimization Score: ₹{result['effective_value']:.2f} (includes efficiency bonuses and penalties used by the algorithm)")
+                
+                # Add visualizations
+                st.header("Data Visualizations")
+                
+                # Create tabs for different visualizations
+                viz_tab1, viz_tab2, viz_tab3 = st.tabs(["Value Distribution", "Capacity Utilization", "Item Allocation"])
+                
+                with viz_tab1:
+                    st.subheader("Value Distribution by Baggage Type")
+                    
+                    # Prepare data for pie chart
+                    values = [result['cabin_value'], result['checkin_value'], result['packer_value']]
+                    labels = ['Cabin', 'Check-in', 'Packers']
+                    
+                    # Create pie chart
+                    fig = px.pie(
+                        values=values,
+                        names=labels,
+                        title="Value Distribution (₹)",
+                        color_discrete_sequence=px.colors.qualitative.Set3,
+                        hole=0.4,
+                    )
+                    fig.update_traces(textposition='inside', textinfo='percent+label+value')
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Create a horizontal bar chart for number of items
+                    item_counts = [len(result['cabin_items']), len(result['checkin_items']), len(result['packer_items'])]
+                    fig2 = px.bar(
+                        x=item_counts,
+                        y=labels,
+                        orientation='h',
+                        title="Number of Items by Baggage Type",
+                        color=labels,
+                        color_discrete_sequence=px.colors.qualitative.Set3,
+                        labels={'x': 'Number of Items', 'y': 'Baggage Type'}
+                    )
+                    fig2.update_layout(showlegend=False)
+                    st.plotly_chart(fig2, use_container_width=True)
+                
+                with viz_tab2:
+                    st.subheader("Capacity Utilization")
+                    
+                    # Create a subplot with two bar charts
+                    fig = make_subplots(rows=2, cols=1, 
+                                        subplot_titles=("Weight Utilization (kg)", "Volume Utilization (liters)"),
+                                        vertical_spacing=0.2)
+                    
+                    # Weight utilization
+                    fig.add_trace(
+                        go.Bar(
+                            x=['Cabin', 'Check-in'],
+                            y=[result['cabin_weight'], result['checkin_weight']],
+                            name='Used',
+                            marker_color='rgb(55, 83, 109)'
+                        ),
+                        row=1, col=1
+                    )
+                    fig.add_trace(
+                        go.Bar(
+                            x=['Cabin', 'Check-in'],
+                            y=[cabin_weight_limit - result['cabin_weight'], checkin_weight_limit - result['checkin_weight']],
+                            name='Available',
+                            marker_color='rgb(26, 118, 255)'
+                        ),
+                        row=1, col=1
+                    )
+                    
+                    # Volume utilization
+                    fig.add_trace(
+                        go.Bar(
+                            x=['Cabin', 'Check-in'],
+                            y=[result['cabin_volume'], result['checkin_volume']],
+                            name='Used',
+                            marker_color='rgb(55, 83, 109)',
+                            showlegend=False
+                        ),
+                        row=2, col=1
+                    )
+                    fig.add_trace(
+                        go.Bar(
+                            x=['Cabin', 'Check-in'],
+                            y=[cabin_volume_limit - result['cabin_volume'], checkin_volume_limit - result['checkin_volume']],
+                            name='Available',
+                            marker_color='rgb(26, 118, 255)',
+                            showlegend=False
+                        ),
+                        row=2, col=1
+                    )
+                    
+                    # Set layout
+                    fig.update_layout(
+                        barmode='stack',
+                        height=500,
+                        legend=dict(
+                            orientation="h",
+                            yanchor="bottom",
+                            y=1.02,
+                            xanchor="right",
+                            x=1
+                        )
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Add gauge charts for utilization percentage
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        cabin_weight_pct = (result['cabin_weight'] / cabin_weight_limit) * 100
+                        cabin_volume_pct = (result['cabin_volume'] / cabin_volume_limit) * 100
+                        
+                        fig = go.Figure(go.Indicator(
+                            mode = "gauge+number",
+                            value = cabin_weight_pct,
+                            title = {'text': "Cabin Utilization (%)"},
+                            domain = {'x': [0, 1], 'y': [0, 1]},
+                            gauge = {'axis': {'range': [0, 100]},
+                                    'bar': {'color': "darkblue"},
+                                    'steps': [
+                                        {'range': [0, 50], 'color': "lightgray"},
+                                        {'range': [50, 80], 'color': "gray"},
+                                        {'range': [80, 100], 'color': "lightblue"}],
+                                    'threshold': {
+                                        'line': {'color': "red", 'width': 4},
+                                        'thickness': 0.75,
+                                        'value': 100}}))
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    with col2:
+                        checkin_weight_pct = (result['checkin_weight'] / checkin_weight_limit) * 100
+                        checkin_volume_pct = (result['checkin_volume'] / checkin_volume_limit) * 100
+                        
+                        fig = go.Figure(go.Indicator(
+                            mode = "gauge+number",
+                            value = checkin_weight_pct,
+                            title = {'text': "Check-in Utilization (%)"},
+                            domain = {'x': [0, 1], 'y': [0, 1]},
+                            gauge = {'axis': {'range': [0, 100]},
+                                    'bar': {'color': "darkblue"},
+                                    'steps': [
+                                        {'range': [0, 50], 'color': "lightgray"},
+                                        {'range': [50, 80], 'color': "gray"},
+                                        {'range': [80, 100], 'color': "lightblue"}],
+                                    'threshold': {
+                                        'line': {'color': "red", 'width': 4},
+                                        'thickness': 0.75,
+                                        'value': 100}}))
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                with viz_tab3:
+                    st.subheader("Item Analysis")
+                    
+                    # Prepare data for bubble chart
+                    all_items = []
+                    for item in result['cabin_items']:
+                        item_copy = item.copy()
+                        item_copy['baggage_type'] = 'Cabin'
+                        all_items.append(item_copy)
+                        
+                    for item in result['checkin_items']:
+                        item_copy = item.copy()
+                        item_copy['baggage_type'] = 'Check-in'
+                        all_items.append(item_copy)
+                        
+                    for item in result['packer_items']:
+                        item_copy = item.copy()
+                        item_copy['baggage_type'] = 'Packers'
+                        all_items.append(item_copy)
+                    
+                    if all_items:
+                        df = pd.DataFrame(all_items)
+                        
+                        # Create bubble chart
+                        fig = px.scatter(
+                            df, 
+                            x="weight", 
+                            y="volume", 
+                            size="value",
+                            color="baggage_type",
+                            hover_name="name",
+                            size_max=60,
+                            title="Items by Weight, Volume and Value",
+                            labels={
+                                "weight": "Weight (kg)",
+                                "volume": "Volume (liters)",
+                                "value": "Value (₹)",
+                                "baggage_type": "Baggage Type"
+                            }
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Create a table with top items by value
+                        st.subheader("Top 10 Items by Value")
+                        top_items = df.sort_values('value', ascending=False).head(10)
+                        fig = go.Figure(data=[go.Table(
+                            header=dict(values=['Name', 'Baggage Type', 'Value (₹)', 'Weight (kg)', 'Volume (L)'],
+                                        fill_color='paleturquoise',
+                                        align='left'),
+                            cells=dict(values=[top_items['name'], 
+                                              top_items['baggage_type'], 
+                                              top_items['value'].round(2), 
+                                              top_items['weight'].round(2), 
+                                              top_items['volume'].round(2)],
+                                      fill_color='lavender',
+                                      align='left'))
+                        ])
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.write("No items available to display.")
                 
                 # Tabs for detailed results
                 tab1, tab2, tab3 = st.tabs(["Cabin Items", "Check-in Items", "Packer Items"])

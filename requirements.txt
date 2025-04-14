@@ -1,3 +1,6 @@
 streamlit
 pulp
 openpyxl
+plotly>=5.10.0
+pandas
+numpy
