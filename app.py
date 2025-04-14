@@ -844,18 +844,50 @@ def main():
                         # Create a table with top items by value
                         st.subheader("Top 10 Items by Value")
                         top_items = df.sort_values('value', ascending=False).head(10)
+                        
+                        # Define more vibrant colors for each baggage type
+                        baggage_colors = {
+                            'Cabin': 'rgba(30, 144, 255, 0.4)',     # Brighter blue
+                            'Check-in': 'rgba(255, 99, 71, 0.4)',   # Brighter red/tomato
+                            'Packers': 'rgba(50, 205, 50, 0.4)'     # Brighter green
+                        }
+                        
+                        # Create color array based on baggage type for each row
+                        fill_colors = []
+                        for bt in top_items['baggage_type']:
+                            fill_colors.append(baggage_colors.get(bt, 'rgba(169, 169, 169, 0.4)'))  # Darker fallback
+                        
                         fig = go.Figure(data=[go.Table(
-                            header=dict(values=['Name', 'Baggage Type', 'Value (₹)', 'Weight (kg)', 'Volume (L)'],
-                                        fill_color='paleturquoise',
-                                        align='left'),
-                            cells=dict(values=[top_items['name'], 
-                                              top_items['baggage_type'], 
-                                              top_items['value'].round(2), 
-                                              top_items['weight'].round(2), 
-                                              top_items['volume'].round(2)],
-                                      fill_color='lavender',
-                                      align='left'))
-                        ])
+                            header=dict(
+                                values=['Name', 'Baggage Type', 'Value (₹)', 'Weight (kg)', 'Volume (L)'],
+                                fill_color='#2c3e50',  # Dark blue header
+                                font=dict(color='white', size=14, family="Arial"),
+                                align='left',
+                                height=30
+                            ),
+                            cells=dict(
+                                values=[
+                                    top_items['name'], 
+                                    top_items['baggage_type'], 
+                                    top_items['value'].round(2), 
+                                    top_items['weight'].round(2), 
+                                    top_items['volume'].round(2)
+                                ],
+                                fill_color=[fill_colors],
+                                font=dict(color='black', size=12, family="Arial"),
+                                align='left',
+                                height=25
+                            )
+                        )])
+                        
+                        fig.update_layout(
+                            margin=dict(l=0, r=0, t=10, b=10),
+                            height=400,
+                            paper_bgcolor='white',  # White background for the whole chart
+                            plot_bgcolor='white'    # White plotting area
+                        )
+                        
+                        # Display the table
                         st.plotly_chart(fig, use_container_width=True)
                     else:
                         st.write("No items available to display.")
